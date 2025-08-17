@@ -1,0 +1,209 @@
+
+
+!
+! Cisco 2821 Router Configuration
+! Device: dlab1
+! Location: Ancient Enterprise Lab
+! Purpose: Voice/Data Router with T1 PRI and SIP connectivity
+! Created: June 2025
+! Configuration Version: 1
+!
+version 15.1
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname dlab1
+!
+boot-start-marker
+boot-end-marker
+!
+!
+card type t1 0 3
+!
+no aaa new-model
+network-clock-participate wic 3 
+!
+dot11 syslog
+ip source-route
+!
+!
+ip cef
+!
+!
+!
+ip domain lookup source-interface GigabitEthernet0/0
+ip domain name domain.anciententerprise.biz
+no ipv6 cef
+multilink bundle-name authenticated
+!         
+!         
+!         
+!         
+isdn switch-type primary-ni
+!         
+!         
+!         
+voice service voip
+ ip address trusted list
+  ipv4 10.4.20.190
+ allow-connections sip to sip
+ redirect ip2ip
+ fax protocol t38 version 0 ls-redundancy 0 hs-redundancy 0 fallback none
+ sip      
+  bind control source-interface GigabitEthernet0/0
+  bind media source-interface GigabitEthernet0/0
+  registrar server
+!         
+voice class codec 1
+ codec preference 1 g711ulaw
+ codec preference 2 g729r8
+!         
+voice class sip-profiles 1
+ response ANY sip-header Diversion remove 
+ request ANY sip-header Diversion remove 
+ request REINVITE sdp-header Audio-Attribute modify "sendonly" "sendrecv" 
+!         
+!         
+!         
+!         
+!         
+voice-card 0
+!         
+crypto pki token default removal timeout 0
+!         
+!         
+!         
+!         
+license udi pid CISCO2821 sn REDACTED
+username admin privilege 15 secret 5 REDACTED
+!         
+!         
+controller T1 0/3/0
+ cablelength long 0db
+ pri-group timeslots 1-24
+!         
+controller T1 0/3/1
+ cablelength long 0db
+!         
+ip ssh version 2
+!         
+!         
+!         
+!         
+!         
+interface GigabitEthernet0/0
+ ip address 10.4.20.196 255.255.255.0
+ duplex auto
+ speed auto
+!         
+interface Service-Engine0/0
+ ip unnumbered GigabitEthernet0/0
+ service-module ip address 10.4.20.197 255.255.255.0
+ service-module ip default-gateway 10.4.20.1
+!         
+interface GigabitEthernet0/1
+ no ip address
+ shutdown 
+ duplex auto
+ speed auto
+!         
+interface Serial0/0/0
+ no ip address
+ shutdown 
+ no fair-queue
+!         
+interface Serial0/2/0
+ no ip address
+ shutdown 
+!         
+interface Serial0/3/0:23
+ no ip address
+ encapsulation hdlc
+ isdn switch-type primary-ni
+ isdn incoming-voice voice
+ no cdp enable
+!         
+ip forward-protocol nd
+!         
+no ip http server
+no ip http secure-server
+!         
+ip dns server
+ip route 0.0.0.0 0.0.0.0 10.4.20.1
+ip route 10.4.20.197 255.255.255.255 Service-Engine0/0
+!         
+!         
+!         
+!         
+control-plane
+!         
+!         
+voice-port 0/3/0:23
+!         
+!         
+!         
+mgcp profile default
+!         
+!         
+dial-peer voice 4100 pots
+ description Route to Asterisk SIP 41XX calls to Definity via PRI
+ destination-pattern 41..
+ port 0/3/0:23
+ forward-digits all
+!         
+dial-peer voice 8999 voip
+ description Voicemail pilot to CUE
+ destination-pattern *98
+ session protocol sipv2
+ session target ipv4:10.4.20.197
+ dtmf-relay rtp-nte
+ codec g711ulaw
+ no vad   
+!         
+dial-peer voice 8100 voip
+ description freepbx
+ destination-pattern 81..
+ session protocol sipv2
+ session target sip-server
+ session transport udp
+ voice-class sip profiles 1
+ voice-class sip bind control source-interface GigabitEthernet0/0
+ voice-class sip bind media source-interface GigabitEthernet0/0
+ dtmf-relay rtp-nte
+ codec g711ulaw
+ no vad   
+!         
+!         
+sip-ua    
+ authentication username cme1 password REDACTED
+ registrar ipv4:10.4.20.190 expires 3600
+ sip-server ipv4:10.4.20.190:5060
+ connection-reuse
+!         
+!         
+telephony-service
+ max-ephones 20
+ max-dn 20
+ max-conferences 8 gain -6
+ transfer-system full-consult
+!         
+!         
+!         
+line con 0
+line aux 0
+line 194  
+ no activation-character
+ no exec  
+ transport preferred none
+ transport input all
+ transport output pad telnet rlogin lapb-ta mop udptn v120 ssh
+line vty 0 5
+ login local
+ transport input telnet ssh
+ transport output telnet ssh
+!         
+scheduler allocate 20000 1000
+ntp source GigabitEthernet0/0
+ntp server time.nist.gov
+end      
